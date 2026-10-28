@@ -3,6 +3,7 @@ import ipaddress
 import json
 import os
 import platform
+import re
 import socket
 import subprocess
 import threading
@@ -13,6 +14,51 @@ from fastapi import Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 PRIVATE_LANS = tuple(ipaddress.ip_network(n) for n in ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'))
+
+
+def _clean_hostname(value):
+    value = (value or '').strip().rstrip('.')[:253]
+    if not value or not re.fullmatch(r'[A-Za-z0-9_.-]+', value):
+        return ''
+    try:
+        ipaddress.ip_address(value)
+        return ''
+    except ValueError:
+        return value
+
+
+def resolve_device_name(ip):
+    """Best-effort PTR/NetBIOS lookup with strict process timeouts."""
+    windows = platform.system() == 'Windows'
+    try:
+        if windows:
+            command = ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                       f"Resolve-DnsName -Name '{ip}' -Type PTR -DnsOnly -ErrorAction Stop | "
+                       'Select-Object -First 1 -ExpandProperty NameHost']
+        else:
+            command = ['getent', 'hosts', ip]
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=2,
+                                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), text=True)
+        if result.returncode == 0:
+            raw = result.stdout.split()[0 if windows else 1]
+            name = _clean_hostname(raw)
+            if name:
+                return name, 'dns'
+    except (OSError, subprocess.TimeoutExpired, IndexError):
+        pass
+    if windows:
+        try:
+            result = subprocess.run(['nbtstat', '-A', ip], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                    timeout=2, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), text=True)
+            for line in result.stdout.splitlines():
+                match = re.match(r'\s*([^\s<]{1,63})\s+<00>\s+UNIQUE', line, re.IGNORECASE)
+                if match:
+                    name = _clean_hostname(match.group(1))
+                    if name:
+                        return name, 'netbios'
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return '', ''
 
 def allowed_networks():
     result = []
@@ -61,8 +107,10 @@ def probe(ip):
             pass
     if not reachable and not ports:
         return None
+    hostname, name_source = resolve_device_name(ip)
     return {'ip': ip, 'ports': ports, 'method': 'icmp+tcp' if reachable and ports else 'icmp' if reachable else 'tcp',
-            'suggested_kind': 'windows' if 445 in ports or 3389 in ports else 'linux' if 22 in ports else 'application' if ports else 'syslog'}
+            'suggested_kind': 'windows' if 445 in ports or 3389 in ports else 'linux' if 22 in ports else 'application' if ports else 'syslog',
+            'hostname': hostname, 'name_source': name_source}
 
 
 class ScanBody(BaseModel):
@@ -78,7 +126,13 @@ def install(app, db, current, allow, audit, now):
     def initialize(c):
         c.execute('''CREATE TABLE IF NOT EXISTS discovered_assets(
             ip TEXT PRIMARY KEY, network TEXT NOT NULL, ports TEXT NOT NULL, method TEXT NOT NULL,
-            suggested_kind TEXT NOT NULL, first_seen TEXT NOT NULL, last_seen TEXT NOT NULL)''')
+            suggested_kind TEXT NOT NULL, hostname TEXT NOT NULL DEFAULT '', name_source TEXT NOT NULL DEFAULT '',
+            first_seen TEXT NOT NULL, last_seen TEXT NOT NULL)''')
+        columns = {row[1] for row in c.execute('PRAGMA table_info(discovered_assets)')}
+        if 'hostname' not in columns:
+            c.execute("ALTER TABLE discovered_assets ADD COLUMN hostname TEXT NOT NULL DEFAULT ''")
+        if 'name_source' not in columns:
+            c.execute("ALTER TABLE discovered_assets ADD COLUMN name_source TEXT NOT NULL DEFAULT ''")
 
     def run(network, actor):
         checked = found = 0
@@ -93,10 +147,16 @@ def install(app, db, current, allow, audit, now):
                         timestamp = now()
                         with db() as c:
                             initialize(c)
-                            c.execute('''INSERT INTO discovered_assets VALUES(?,?,?,?,?,?,?)
+                            c.execute('''INSERT INTO discovered_assets
+                                (ip,network,ports,method,suggested_kind,hostname,name_source,first_seen,last_seen)
+                                VALUES(?,?,?,?,?,?,?,?,?)
                                 ON CONFLICT(ip) DO UPDATE SET network=excluded.network,ports=excluded.ports,
-                                method=excluded.method,suggested_kind=excluded.suggested_kind,last_seen=excluded.last_seen''',
-                                (item['ip'], str(network), json.dumps(item['ports']), item['method'], item['suggested_kind'], timestamp, timestamp))
+                                method=excluded.method,suggested_kind=excluded.suggested_kind,
+                                hostname=CASE WHEN excluded.hostname<>'' THEN excluded.hostname ELSE discovered_assets.hostname END,
+                                name_source=CASE WHEN excluded.name_source<>'' THEN excluded.name_source ELSE discovered_assets.name_source END,
+                                last_seen=excluded.last_seen''',
+                                (item['ip'], str(network), json.dumps(item['ports']), item['method'], item['suggested_kind'],
+                                 item.get('hostname', ''), item.get('name_source', ''), timestamp, timestamp))
                     with lock:
                         job.update(checked=checked, found=found)
             with db() as c:

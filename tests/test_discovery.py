@@ -18,7 +18,7 @@ def test_discovery_rejects_outside_or_invalid_networks(monkeypatch,value):
 
 def test_discovery_permissions_inventory_and_registration(client,monkeypatch):
     monkeypatch.setenv('HYPERLOGS_DISCOVERY_NETWORKS','192.168.2.0/24')
-    monkeypatch.setattr(discovery,'probe',lambda ip: {'ip':ip,'ports':[22],'method':'tcp','suggested_kind':'linux'} if ip.endswith('.1') else None)
+    monkeypatch.setattr(discovery,'probe',lambda ip: {'ip':ip,'ports':[22],'method':'tcp','suggested_kind':'linux','hostname':'lab-pc','name_source':'dns'} if ip.endswith('.1') else None)
     assert client.get('/api/discovery').status_code==401
     login(client,'soc1')
     assert client.get('/api/discovery').status_code==200
@@ -36,6 +36,7 @@ def test_discovery_permissions_inventory_and_registration(client,monkeypatch):
     assert value['job']['status']=='completed'
     assert value['job']['checked']==2 and value['job']['found']==1
     assert value['assets'][0]['ports']==[22]
+    assert value['assets'][0]['hostname']=='lab-pc'
     assert value['assets'][0]['source_id'] is None
     assert client.post('/api/discovery/scan',json={'network':'192.168.2.0/30'}).status_code==429
     result=client.post('/api/sources',json={'name':'Detected Linux','kind':'linux','ip':'192.168.2.1'})
@@ -59,4 +60,13 @@ def test_windows_unreachable_is_not_an_active_host(monkeypatch,response,expected
     monkeypatch.setattr(discovery.subprocess,'run',lambda *a,**k:SimpleNamespace(returncode=0,stdout=response))
     def closed(*a,**k): raise OSError('closed')
     monkeypatch.setattr(discovery.socket,'create_connection',closed)
+    monkeypatch.setattr(discovery,'resolve_device_name',lambda ip: ('',''))
     assert bool(discovery.probe('192.168.2.1')) is expected
+
+
+def test_device_name_prefers_ptr_and_rejects_ip(monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.setattr(discovery.platform,'system',lambda:'Windows')
+    monkeypatch.setattr(discovery.subprocess,'run',lambda *a,**k:SimpleNamespace(returncode=0,stdout='LAB-PC.example.local.\r\n'))
+    assert discovery.resolve_device_name('192.168.2.10')==('LAB-PC.example.local','dns')
+    assert discovery._clean_hostname('192.168.2.10')==''
