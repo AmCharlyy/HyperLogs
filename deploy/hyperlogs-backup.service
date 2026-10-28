@@ -1,0 +1,16 @@
+[Unit]
+Description=Consistent HyperLogs SQLite backup
+
+[Service]
+Type=oneshot
+User=hyperlogs
+Group=hyperlogs
+WorkingDirectory=/opt/hyperlogs
+EnvironmentFile=/etc/hyperlogs/hyperlogs.env
+ExecStart=/bin/sh -c 'exec /opt/hyperlogs/.venv/bin/python -m backend.manage backup --output "/var/lib/hyperlogs/backups/hyperlogs-$(date -u +%%Y%%m%%dT%%H%%M%%SZ).tar.gz"'
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/hyperlogs

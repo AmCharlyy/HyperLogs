@@ -1,0 +1,28 @@
+[Unit]
+Description=HyperLogs SOC API and web application
+After=network.target
+
+[Service]
+Type=simple
+User=hyperlogs
+Group=hyperlogs
+WorkingDirectory=/opt/hyperlogs
+EnvironmentFile=/etc/hyperlogs/hyperlogs.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/hyperlogs/.venv/bin/python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips 127.0.0.1 --limit-concurrency 64 --timeout-keep-alive 5 --no-server-header
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/hyperlogs
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryMax=1200M
+TasksMax=80
+
+[Install]
+WantedBy=multi-user.target

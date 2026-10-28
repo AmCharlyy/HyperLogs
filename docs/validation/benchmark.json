@@ -1,0 +1,25 @@
+{
+  "scope": "Windows local ASGI TestClient; 5000 synthetic benchmark events in isolated temporary database; excludes network/TLS and is not Linux production capacity",
+  "events": 5000,
+  "ingest_seconds": 1.278,
+  "events_per_second": 3913,
+  "read_requests": 80,
+  "latency": {
+    "/api/overview": {
+      "median_ms": 32.37,
+      "p95_ms": 35.17
+    },
+    "/api/events": {
+      "median_ms": 16.68,
+      "p95_ms": 19.38
+    },
+    "/api/sources": {
+      "median_ms": 15.2,
+      "p95_ms": 17.23
+    },
+    "/api/analytics": {
+      "median_ms": 27.1,
+      "p95_ms": 29.92
+    }
+  }
+}

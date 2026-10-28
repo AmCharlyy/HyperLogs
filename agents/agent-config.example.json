@@ -1,0 +1,8 @@
+{
+  "server": "https://hyperlogs.example.com",
+  "token": "REPLACE_WITH_SOURCE_TOKEN",
+  "interval": 30,
+  "state": "agent-state.sqlite3",
+  "watch_files": [],
+  "auth_log": ""
+}
