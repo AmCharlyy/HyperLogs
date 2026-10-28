@@ -23,7 +23,7 @@ La redacción reconoce patrones comunes: no garantiza eliminar cualquier dato se
 
 Se recorrieron login, consola, búsqueda, alertas, expediente, analítica, SOAR, auditoría, configuración y cuenta en navegador. Se verificó login y modal a 390 px sin desbordamiento horizontal. Se conservaron el diseño blanco, jerarquía visual y animación ambiental aprobados.
 
-Correcciones: errores de conexión visibles con reintento; expiración vuelve a login; solicitudes duplicadas agrupadas y búsqueda anterior cancelada; protección frente a respuestas antiguas al cambiar sesión/rol; modales con foco, Escape y retorno de foco; controles según permisos; gráficos sin series ficticias y baseline insuficiente señalado.
+Correcciones: errores de conexión visibles con reintento; expiración vuelve a login; solicitudes duplicadas agrupadas y búsqueda anterior cancelada; protección frente a respuestas antiguas al cambiar sesión/rol; modales con foco, Escape y retorno de foco, montados fuera de la consola para respetar el tamaño de pantalla móvil; controles según permisos; gráficos sin series ficticias y baseline insuficiente señalado.
 
 La escena 3D se carga después de autenticar, limita aproximadamente a 30 fps y pausa fuera de pantalla o pestaña inactiva; respeta movimiento reducido y reutiliza sombras. Se sustituyó una constante obsoleta de sombras de Three.js y se asegura repintado tras redimensionar. JavaScript inicial: unos 315 kB, 93 kB gzip; escena diferida: unos 588 kB, 151 kB gzip. Vite advierte del tamaño de este chunk diferido; no impide compilar. El CSS conserva capas de iteraciones visuales y queda como deuda de mantenimiento, sin bloqueo funcional observado.
 
@@ -43,3 +43,9 @@ Medición local con 5000 eventos sintéticos, Windows y ASGI TestClient: mediana
 Seguir PRODUCCION.md: configurar dominio y certificado válidos, usuario de servicio, directorio privado de datos, administrador propio y un solo worker. Ejecutar nginx -t, comprobar systemd/HTTPS y restaurar un respaldo de ensayo. Registrar y probar las fuentes reales con sus permisos de sistema; su colección Windows/Linux y el puente rsyslog no se han probado en los equipos del centro. La demostración local no representa esas conexiones.
 
 Configurar retención de eventos y copias externas según el uso real; actualmente no hay purga automática ni política de retención organizacional. SQLite y la coordinación de auditoría están diseñados para una instancia con un proceso. No usar múltiples workers ni varias réplicas sin rediseñar esa coordinación. No se incluye MFA/SSO ni operación distribuida de alta disponibilidad.
+
+### Ampliación: descubrimiento LAN, 28 de octubre de 2026
+
+Se añadió inventario persistente de activos, exploración acotada a redes privadas autorizadas, permisos de administrador y auditoría, progreso y registro mediante el flujo existente de fuentes. Trece pruebas adicionales aprobaron validación de red, CSRF, roles, persistencia y asociación con una fuente. Evidencia: validation/discovery-tests.xml. El inventario no implica que el equipo ya envíe métricas ni garantiza enumerar equipos silenciosos.
+
+Validación combinada tras la ampliación: **47 pruebas aprobadas**, cero fallos. La compilación frontend de producción también completó. La exploración real de la LAN local autorizada recorrió 254 direcciones y detectó siete activos que respondieron en ese momento; no es una evidencia de integración de agentes del centro.

@@ -74,3 +74,21 @@ La verificación de auditoría recorre la cadena, no la carga completa en memori
 React carga la escena 3D de forma diferida. Su render limita aproximadamente a 30 fps, respeta movimiento reducido, pausa fuera de pantalla/pestaña y reutiliza sombras estáticas. Las etiquetas solo actualizan React cuando cambian sus posiciones. Sin dependencias de fuentes o fotografías externas. La API agrupa históricos y cuenta fuentes sin consultas por equipo. El cliente evita consultas idénticas simultáneas, cancela búsquedas antiguas y muestra desconexión/expiración.
 
 El UI conserva la estética aprobada. Formularios con etiquetas, diálogos con foco atrapado y restaurado, Escape, tablas navegables por teclado y mensajes de error. Las tablas amplias tienen desplazamiento horizontal en móvil; no se afirma conformidad WCAG integral sin una auditoría independiente.
+
+## Descubrimiento de activos en la LAN
+
+La consola incluye **Descubrir red**. Un administrador inicia una búsqueda IPv4 de hasta 254 direcciones, en segundo plano, con progreso y auditoría. El servidor prueba ICMP y conexiones TCP a 22, 80, 443, 445 y 3389; no autentica, no lee banners ni ejecuta órdenes remotas. Las respuestas se conservan como inventario separado de las fuentes que envían eventos. Registrar abre el formulario de fuente con IP y tipo sugerido; el token y el agente completan la incorporación al monitoreo.
+
+En el archivo de entorno del servidor define, con la red real del centro:
+
+```ini
+HYPERLOGS_DISCOVERY_NETWORKS=192.168.2.0/24
+```
+
+Puedes autorizar varias redes privadas separadas por comas. Solo se permiten bloques RFC1918 /16 o más pequeños; cada trabajo debe elegir una subred /24 a /30 contenida en la lista. Reinicia el servicio después de cambiarla. La instancia de desarrollo de esta computadora usa su Wi-Fi 192.168.2.0/24; esa dirección no debe asumirse en otro lugar. No se configura una red real por defecto en el paquete de producción.
+
+Solo hay un trabajo simultáneo y un minuto mínimo entre inicios. Hasta 16 sondas se ejecutan en paralelo con tiempos de espera acotados. No requiere root; instala iputils-ping en Debian si falta ping. Si ICMP falla, se conserva la detección mediante los puertos TCP indicados. El servidor debe tener ruta y permisos de salida hacia los equipos. No expongas esa función a personas ajenas a la administración de la LAN.
+
+La lista conserva primera y última detección; no afirma presencia actual. Un equipo que bloquea ICMP y los puertos probados puede no aparecer. VLAN, redes de invitados, aislamiento Wi-Fi y firewalls también limitan la visibilidad. No se identifica de forma confiable fabricante, MAC o sistema operativo; el tipo es una sugerencia editable. Una IP puede reasignarse por DHCP: para identidad duradera configura reservas y vincula agentes.
+
+API: GET /api/discovery (inventario autenticado); POST /api/discovery/scan con {"network":"192.168.2.0/24"} (administrador y CSRF). Resultado 202; el cliente consulta el progreso cada dos segundos mientras el panel está abierto. Cerrar el panel no cancela el trabajo. Reiniciar el servidor interrumpe el trabajo activo pero conserva los activos ya guardados. El inventario queda en la misma base SQLite y se incluye en su respaldo.

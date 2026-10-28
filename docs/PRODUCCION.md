@@ -83,3 +83,7 @@ Para restaurar una copia propia y confiable: detén el servicio, extrae el archi
 ## Límites honestos
 
 La API/web puede operar como un SOC pequeño de una instancia. No es una certificación, una prueba de penetración independiente ni un reemplazo completo de un SIEM empresarial. No se ha verificado systemd/Nginx/TLS en un host Linux real durante esta revisión. No incluye MFA, SSO, alta disponibilidad ni contención real de dispositivos. La cadena SHA-256 detecta alteraciones parciales; un administrador con control total del disco podría reconstruirla. Los backups/checkpoints externos son esenciales para anclar evidencias.
+
+## Habilitar descubrimiento LAN
+
+Antes de iniciar el servicio, configura `HYPERLOGS_DISCOVERY_NETWORKS` en `/etc/hyperlogs/hyperlogs.env` con las redes privadas del centro, por ejemplo `192.168.2.0/24` si coincide con su red real. Puedes dejarlo vacío para desactivar escaneos. Instala `iputils-ping` desde los repositorios de Debian y verifica conectividad desde la cuenta `hyperlogs`. Reinicia `hyperlogs.service`. Desde **Descubrir red**, el administrador inicia el escaneo y registra los equipos encontrados. La instalación de agentes y sus permisos siguen siendo necesarios. Consulta TECNICA.md para restricciones, puertos y tratamiento de DHCP.

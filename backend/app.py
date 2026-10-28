@@ -851,6 +851,9 @@ def health():
 @app.get('/api/config')
 def public_config(): return {'demo':DEMO and not PRODUCTION,'production':PRODUCTION}
 
+from .discovery import install as install_discovery
+install_discovery(app, db, current, allow, audit, now)
+
 if (ROOT/'dist').exists():
     app.mount('/assets',StaticFiles(directory=ROOT/'dist'/'assets'),name='assets')
     @app.get('/{path:path}')

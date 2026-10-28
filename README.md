@@ -75,3 +75,11 @@ python -m pip_audit -r requirements.lock
 ```
 
 Resultados y límites: [REVISIÓN](docs/REVISION.md). Los resultados de escáneres dependen de sus bases de advisories y no certifican ausencia de vulnerabilidades.
+
+## Descubrimiento de red
+
+La opción **Descubrir red** encuentra activos que responden desde el servidor. Configura `HYPERLOGS_DISCOVERY_NETWORKS` con las subredes privadas autorizadas y reinicia el servicio. Registra los resultados y conecta sus agentes para recibir eventos y métricas. Consulta las condiciones y limitaciones en [TECNICA.md](docs/TECNICA.md#descubrimiento-de-activos-en-la-lan).
+
+## Documento técnico
+
+Consulta [el PDF técnico desarrollado](docs/HyperLogs-Documento-Tecnico.pdf), con objetivos, SRS, diagramas de componentes, despliegue, flujo de eventos y modelo de datos; incluye gobernanza, SIEM, SOAR, analítica, descubrimiento LAN, instalación, recuperación, revisión y trazabilidad académica.
