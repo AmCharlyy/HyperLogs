@@ -37,7 +37,7 @@ function Sparkline({values=[],color='mint',fill=false}){let max=Math.max(...valu
 function App(){
   const [user,setUser]=useState(null),[ready,setReady]=useState(false),[demo,setDemo]=useState(false),[view,setView]=useState('overview');
   const [overview,setOverview]=useState(null),[sources,setSources]=useState([]),[alerts,setAlerts]=useState([]),[selected,setSelected]=useState(null);
-  const [toast,setToast]=useState(null),[modal,setModal]=useState(null),[refresh,setRefresh]=useState(0),[live,setLive]=useState(true),[sound,setSound]=useState(false),[search,setSearch]=useState(''),[eventSource,setEventSource]=useState('');
+  const [toast,setToast]=useState(null),[modal,setModal]=useState(()=>new URLSearchParams(window.location.search).get('panel')==='discovery'?'discovery':null),[refresh,setRefresh]=useState(0),[live,setLive]=useState(true),[sound,setSound]=useState(false),[search,setSearch]=useState(''),[eventSource,setEventSource]=useState('');
   const [discoveredSource,setDiscoveredSource]=useState(null);
   useEffect(()=>{if(modal!=='source')setDiscoveredSource(null)},[modal]);
   const audio=useRef(null),loading=useRef(false),mounted=useRef(true),authEpoch=useRef(0);
