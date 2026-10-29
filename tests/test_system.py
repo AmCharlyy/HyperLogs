@@ -68,6 +68,18 @@ def test_origin_host_body_csp_and_docs(client):
     assert result.headers['cache-control']=='no-store'
     assert client.post('/api/auth/login',headers={'Origin':'https://evil.example'},json={'username':'admin','password':PASSWORD}).status_code==403
     assert client.post('/api/auth/login',content='x',headers={'content-type':'text/plain'}).status_code==415
+
+
+def test_public_windows_downloads_are_explicit_and_reported(client):
+    directory=service.DATA/'downloads';directory.mkdir()
+    (directory/'HyperLogsSetup.exe').write_bytes(b'MZ-setup')
+    (directory/'HyperLogsAgent.exe').write_bytes(b'MZ-agent')
+    config=client.get('/api/config').json()
+    assert config['downloads']['HyperLogsSetup.exe']=={'available':True,'bytes':8}
+    result=client.get('/api/downloads/HyperLogsSetup.exe')
+    assert result.status_code==200 and result.content==b'MZ-setup'
+    assert 'HyperLogsSetup.exe' in result.headers['content-disposition']
+    assert client.get('/api/downloads/secret.txt').status_code==404
     assert client.post('/api/ingest',content='x'*(security.MAX_BODY+1),headers={'content-type':'application/json'}).status_code==413
     assert client.get('/api/not-a-route').status_code==404
 

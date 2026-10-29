@@ -35,7 +35,9 @@ def test_production_http_smoke_in_isolated_process(tmp_path):
 from fastapi.testclient import TestClient
 from backend.app import app
 with TestClient(app,base_url='https://soc.example.test') as client:
-    assert client.get('/api/config').json()=={'demo':False,'production':True}
+    config=client.get('/api/config').json()
+    assert config['demo'] is False and config['production'] is True
+    assert config['downloads']['HyperLogsSetup.exe']['available'] is False
     assert client.get('/docs').status_code==404
     assert client.post('/api/demo/session',json={'role':'admin'}).status_code==404
     result=client.post('/api/auth/login',json={'username':'admin','password':'Only-for-automated-tests-7284'})

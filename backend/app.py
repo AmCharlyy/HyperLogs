@@ -905,7 +905,20 @@ def health():
     return {'status':'ok','version':'1.1.0'}
 
 @app.get('/api/config')
-def public_config(): return {'demo':DEMO and not PRODUCTION,'production':PRODUCTION}
+def public_config():
+    directory=DATA/'downloads'
+    return {'demo':DEMO and not PRODUCTION,'production':PRODUCTION,'downloads':{
+        name:{'available':(directory/name).is_file(),'bytes':(directory/name).stat().st_size if (directory/name).is_file() else 0}
+        for name in ('HyperLogsSetup.exe','HyperLogsAgent.exe')}}
+
+@app.get('/api/downloads/{name}')
+def public_download(name:str):
+    if name not in {'HyperLogsSetup.exe','HyperLogsAgent.exe'}:
+        raise HTTPException(404,'Descarga no encontrada')
+    path=DATA/'downloads'/name
+    if not path.is_file():
+        raise HTTPException(404,'El instalador todavía no está disponible')
+    return FileResponse(path,filename=name,media_type='application/vnd.microsoft.portable-executable')
 
 from .discovery import install as install_discovery
 install_discovery(app, db, current, allow, audit, now)
