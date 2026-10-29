@@ -53,7 +53,7 @@ Para aplicaciones propias, envía `POST /api/ingest` con `X-Source-Token` y `{"e
 
 ### Asistente Windows
 
-En **Conectar fuente → Windows**, el administrador puede generar un código temporal de un solo uso. Compila los ejecutables con `powershell -ExecutionPolicy Bypass -File agents/build_windows.ps1` y entrega juntos `HyperLogsSetup.exe`, `HyperLogsAgent.exe` y la CA pública `caddy-root.crt` de esa instancia. El asistente valida TLS con esa CA, identifica el equipo, canjea el código, copia el certificado a la carpeta privada, protege la credencial mediante DPAPI, restringe el acceso a SYSTEM/Administradores y crea la tarea `HyperLogs Agent` para iniciar con Windows. El código vence en diez minutos y nunca contiene el token permanente.
+En **Conectar fuente → Windows**, el administrador genera un código temporal de un solo uso. `HyperLogsSetup.exe` contiene el agente, la CA pública y la dirección de esa instancia. El asistente comprueba conectividad y TLS, identifica el equipo, canjea el código, protege la credencial mediante DPAPI, restringe la carpeta a SYSTEM/Administradores, activa la auditoría compatible, verifica un envío real y crea la tarea de inicio. Una instalación existente ofrece **Diagnosticar y reparar** sin reemplazar su token. El código vence en diez minutos y nunca contiene la credencial permanente.
 
 ## Roles y respuesta
 

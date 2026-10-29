@@ -13,14 +13,14 @@ HYPERLOGS_SITE_ADDRESS=192.168.2.114
 HYPERLOGS_PUBLIC_URL=https://192.168.2.114:8443
 HYPERLOGS_ALLOWED_HOSTS=192.168.2.114,localhost
 '@ | Set-Content -Path .env
-python -m pip install -r agents/requirements.txt
-powershell -ExecutionPolicy Bypass -File agents/build_windows.ps1
-Copy-Item dist/HyperLogsSetup.exe .runtime/data/downloads/
-Copy-Item dist/HyperLogsAgent.exe .runtime/data/downloads/
 docker compose build
 docker compose run --rm app python -m backend.manage bootstrap
 docker compose up -d
 docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt .runtime/caddy-root.crt
+python -m pip install -r agents/requirements.txt
+powershell -ExecutionPolicy Bypass -File agents/build_windows.ps1
+Copy-Item dist/HyperLogsSetup.exe .runtime/data/downloads/
+Copy-Item dist/HyperLogsAgent.exe .runtime/data/downloads/
 Copy-Item .runtime/caddy-root.crt .runtime/data/downloads/
 docker compose ps
 ```
@@ -33,7 +33,7 @@ Para permitir el acceso desde otros equipos del mismo segmento, crea una regla a
 New-NetFirewallRule -DisplayName 'HyperLogs HTTPS LAN' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8443 -RemoteAddress 192.168.2.0/24 -Profile Any
 ```
 
-Exporta `.runtime/caddy-root.crt` y cópialo por un medio confiable al otro equipo. Allí, un usuario que confíe en esta CA privada puede instalarlo en su almacén personal con `Import-Certificate -FilePath .\caddy-root.crt -CertStoreLocation Cert:\CurrentUser\Root`. Protege la clave privada de Caddy, que permanece en el volumen Docker y nunca debe copiarse.
+El instalador publicado ya contiene la CA pública y la URL de esta instancia; el usuario descarga únicamente `HyperLogsSetup.exe`. Los otros archivos se conservan como componentes avanzados. Protege la clave privada de Caddy, que permanece en el volumen Docker y nunca debe copiarse.
 
 El comando `bootstrap` solicita una contraseña nueva de forma interactiva; crea la cuenta `admin` y no imprime el secreto. No hay contraseña predeterminada. Luego entra en `https://localhost:8443`. Caddy crea una CA local privada y su certificado raíz se exporta a `.runtime/caddy-root.crt`. Los navegadores mostrarán una advertencia hasta que el usuario decida instalar esa raíz en el almacén de confianza de su perfil de Windows; no omitas las advertencias TLS. Si deseas confiarla manualmente, ejecuta en PowerShell: `Import-Certificate -FilePath .runtime/caddy-root.crt -CertStoreLocation Cert:\CurrentUser\Root`. Si no deseas confiarla, puedes detener el perfil con `docker compose down`.
 

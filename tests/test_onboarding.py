@@ -70,7 +70,20 @@ def test_install_uses_mocked_windows_tools_only(tmp_path,monkeypatch):
     result=onboarding.install_windows(executable,root=tmp_path/'program-data',runner=runner,ca_certificate=certificate)
     assert Path(result['binary']).read_bytes()==b'isolated-agent'
     assert Path(result['ca_cert']).read_bytes()==b'public-ca'
-    assert [call[0] for call in calls]==['icacls.exe','schtasks.exe','schtasks.exe']
+    assert [call[0] for call in calls]==['schtasks.exe','icacls.exe','schtasks.exe','schtasks.exe']
+
+
+def test_repair_preserves_credential_and_agent_probe_is_strict(tmp_path):
+    config=tmp_path/'agent.json';certificate=tmp_path/'caddy-root.crt';certificate.write_text('public-ca')
+    config.write_text(json.dumps({'server':'https://old.local','token_protected':'machine-secret','state':str(tmp_path/'state.sqlite3')}))
+    repaired=onboarding.repair_config(config,'https://new.local',certificate)
+    assert repaired['token_protected']=='machine-secret' and repaired['server']=='https://new.local'
+    class Result:
+        returncode=0;stdout='Acknowledged events: 1\n';stderr=''
+    assert 'Acknowledged events: 1' in onboarding.run_agent_once(tmp_path/'agent.exe',config,runner=lambda *args,**kwargs:Result())
+    Result.stdout='Delivery deferred (URLError); batch kept locally.\n'
+    with pytest.raises(RuntimeError,match='prueba de envío falló'):
+        onboarding.run_agent_once(tmp_path/'agent.exe',config,runner=lambda *args,**kwargs:Result())
 
 
 @pytest.mark.parametrize('value',['http://192.168.2.20','https://host/path','https://user:pass@host','not-a-url'])
