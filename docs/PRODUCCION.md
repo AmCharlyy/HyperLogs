@@ -6,6 +6,7 @@ El perfil Compose incluido ejecuta la misma API compilada en modo producción, S
 
 ```powershell
 New-Item -ItemType Directory -Force .runtime/data/downloads
+Set-Content -Path .env -Value 'HYPERLOGS_DISCOVERY_NETWORKS=192.168.2.0/24'
 python -m pip install -r agents/requirements.txt
 powershell -ExecutionPolicy Bypass -File agents/build_windows.ps1
 Copy-Item dist/HyperLogsSetup.exe .runtime/data/downloads/
@@ -15,6 +16,8 @@ docker compose run --rm app python -m backend.manage bootstrap
 docker compose up -d
 docker compose ps
 ```
+
+Cambia `192.168.2.0/24` por la subred IPv4 real del equipo anfitrión. El archivo `.env` es local, está excluido de Git y Compose lo usa para limitar el descubrimiento. Si no quieres habilitarlo todavía, omite ese comando y el escaneo permanecerá desactivado.
 
 El comando `bootstrap` solicita una contraseña nueva de forma interactiva; crea la cuenta `admin` y no imprime el secreto. No hay contraseña predeterminada. Luego entra en `https://localhost:8443`. Caddy crea una CA local privada y su certificado raíz se exporta a `.runtime/caddy-root.crt`. Los navegadores mostrarán una advertencia hasta que el usuario decida instalar esa raíz en el almacén de confianza de su perfil de Windows; no omitas las advertencias TLS. Si deseas confiarla manualmente, ejecuta en PowerShell: `Import-Certificate -FilePath .runtime/caddy-root.crt -CertStoreLocation Cert:\CurrentUser\Root`. Si no deseas confiarla, puedes detener el perfil con `docker compose down`.
 

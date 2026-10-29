@@ -13,13 +13,14 @@ services:
       HYPERLOGS_DATA: /var/lib/hyperlogs
       HYPERLOGS_PUBLIC_URL: https://localhost:8443
       HYPERLOGS_ALLOWED_HOSTS: localhost
-      HYPERLOGS_DISCOVERY_NETWORKS: ""
+      HYPERLOGS_DISCOVERY_NETWORKS: "${HYPERLOGS_DISCOVERY_NETWORKS:-}"
     volumes:
       - ./.runtime/data:/var/lib/hyperlogs
     expose:
       - "8000"
     networks:
       - backend
+      - edge
     init: true
     restart: unless-stopped
     read_only: true

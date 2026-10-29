@@ -11,7 +11,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     HYPERLOGS_DATA=/var/lib/hyperlogs
 WORKDIR /app
-RUN groupadd --system --gid 10001 hyperlogs \
+RUN apt-get update \
+ && apt-get install --no-install-recommends --yes iputils-ping \
+ && rm -rf /var/lib/apt/lists/* \
+ && groupadd --system --gid 10001 hyperlogs \
  && useradd --system --uid 10001 --gid 10001 --home-dir /var/lib/hyperlogs --no-create-home hyperlogs \
  && mkdir -p /var/lib/hyperlogs \
  && chown 10001:10001 /var/lib/hyperlogs
