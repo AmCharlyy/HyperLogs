@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {Layers3,ArrowRight,ArrowDownToLine,Eye,EyeOff,LockKeyhole,UserRound,ShieldCheck,Sparkles,LoaderCircle,X} from 'lucide-react';
+import {Layers3,ArrowRight,ArrowDownToLine,Eye,EyeOff,LockKeyhole,UserRound,ShieldCheck,Sparkles,LoaderCircle,X,Radio,Activity} from 'lucide-react';
 import NetworkScene from './SceneLoader';
 import './login.css';
 
