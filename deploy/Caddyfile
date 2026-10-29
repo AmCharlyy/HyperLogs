@@ -1,8 +1,14 @@
 {
 	admin off
+	default_sni {$HYPERLOGS_SITE_ADDRESS}
 }
 
 https://localhost:8443 {
+	tls internal
+	redir https://{$HYPERLOGS_SITE_ADDRESS}:8443{uri} permanent
+}
+
+https://{$HYPERLOGS_SITE_ADDRESS}:8443 {
 	tls internal
 	encode zstd gzip
 	reverse_proxy app:8000

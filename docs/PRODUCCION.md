@@ -6,7 +6,13 @@ El perfil Compose incluido ejecuta la misma API compilada en modo producción, S
 
 ```powershell
 New-Item -ItemType Directory -Force .runtime/data/downloads
-Set-Content -Path .env -Value 'HYPERLOGS_DISCOVERY_NETWORKS=192.168.2.0/24'
+@'
+HYPERLOGS_DISCOVERY_NETWORKS=192.168.2.0/24
+HYPERLOGS_BIND_ADDRESS=0.0.0.0
+HYPERLOGS_SITE_ADDRESS=192.168.2.114
+HYPERLOGS_PUBLIC_URL=https://192.168.2.114:8443
+HYPERLOGS_ALLOWED_HOSTS=192.168.2.114,localhost
+'@ | Set-Content -Path .env
 python -m pip install -r agents/requirements.txt
 powershell -ExecutionPolicy Bypass -File agents/build_windows.ps1
 Copy-Item dist/HyperLogsSetup.exe .runtime/data/downloads/
@@ -17,7 +23,15 @@ docker compose up -d
 docker compose ps
 ```
 
-Cambia `192.168.2.0/24` por la subred IPv4 real del equipo anfitrión. El archivo `.env` es local, está excluido de Git y Compose lo usa para limitar el descubrimiento. Si no quieres habilitarlo todavía, omite ese comando y el escaneo permanecerá desactivado.
+Cambia `192.168.2.0/24` por la subred IPv4 real y `192.168.2.114` por la IP fija o reservada del equipo anfitrión. El archivo `.env` es local, está excluido de Git y Compose lo usa para limitar el descubrimiento y definir el origen HTTPS. Si el panel será exclusivamente local, conserva los valores predeterminados y omite estas variables.
+
+Para permitir el acceso desde otros equipos del mismo segmento, crea una regla acotada desde PowerShell **como administrador**:
+
+```powershell
+New-NetFirewallRule -DisplayName 'HyperLogs HTTPS LAN' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8443 -RemoteAddress 192.168.2.0/24 -Profile Any
+```
+
+Exporta `.runtime/caddy-root.crt` y cópialo por un medio confiable al otro equipo. Allí, un usuario que confíe en esta CA privada puede instalarlo en su almacén personal con `Import-Certificate -FilePath .\caddy-root.crt -CertStoreLocation Cert:\CurrentUser\Root`. Protege la clave privada de Caddy, que permanece en el volumen Docker y nunca debe copiarse.
 
 El comando `bootstrap` solicita una contraseña nueva de forma interactiva; crea la cuenta `admin` y no imprime el secreto. No hay contraseña predeterminada. Luego entra en `https://localhost:8443`. Caddy crea una CA local privada y su certificado raíz se exporta a `.runtime/caddy-root.crt`. Los navegadores mostrarán una advertencia hasta que el usuario decida instalar esa raíz en el almacén de confianza de su perfil de Windows; no omitas las advertencias TLS. Si deseas confiarla manualmente, ejecuta en PowerShell: `Import-Certificate -FilePath .runtime/caddy-root.crt -CertStoreLocation Cert:\CurrentUser\Root`. Si no deseas confiarla, puedes detener el perfil con `docker compose down`.
 

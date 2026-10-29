@@ -11,8 +11,8 @@ services:
       HYPERLOGS_DEMO: "0"
       HYPERLOGS_LAB_ENABLED: "0"
       HYPERLOGS_DATA: /var/lib/hyperlogs
-      HYPERLOGS_PUBLIC_URL: https://localhost:8443
-      HYPERLOGS_ALLOWED_HOSTS: localhost
+      HYPERLOGS_PUBLIC_URL: "${HYPERLOGS_PUBLIC_URL:-https://localhost:8443}"
+      HYPERLOGS_ALLOWED_HOSTS: "${HYPERLOGS_ALLOWED_HOSTS:-localhost}"
       HYPERLOGS_DISCOVERY_NETWORKS: "${HYPERLOGS_DISCOVERY_NETWORKS:-}"
     volumes:
       - ./.runtime/data:/var/lib/hyperlogs
@@ -58,7 +58,9 @@ services:
       app:
         condition: service_healthy
     ports:
-      - "127.0.0.1:8443:8443"
+      - "${HYPERLOGS_BIND_ADDRESS:-127.0.0.1}:8443:8443"
+    environment:
+      HYPERLOGS_SITE_ADDRESS: "${HYPERLOGS_SITE_ADDRESS:-localhost}"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
