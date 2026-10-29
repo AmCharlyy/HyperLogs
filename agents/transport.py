@@ -10,6 +10,12 @@ import urllib.request
 
 def config(path):
     cfg=json.loads(Path(path).read_text(encoding='utf-8-sig'))
+    if cfg.get('token_protected'):
+        try:
+            from windows_secret import unprotect
+            cfg['token']=unprotect(cfg.pop('token_protected'))
+        except Exception as exc:
+            raise ValueError('Unable to decrypt the local source credential') from exc
     url=urllib.parse.urlsplit(cfg['server'])
     if url.username or url.password or url.query or url.fragment:
         raise ValueError('Server must be an origin without credentials/query')

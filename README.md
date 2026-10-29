@@ -49,6 +49,10 @@ Syslog: `python agents/syslog_bridge.py --config /ruta/privada/syslog.json`. Usa
 
 Para aplicaciones propias, envía `POST /api/ingest` con `X-Source-Token` y `{"events":[...]}`. Campos admitidos y límites en [documentación técnica](docs/TECNICA.md). La web no conoce los tokens de agentes una vez cerrado su diálogo de creación/rotación.
 
+### Asistente Windows
+
+En **Conectar fuente → Windows**, el administrador puede generar un código temporal de un solo uso. Compila los ejecutables con `powershell -ExecutionPolicy Bypass -File agents/build_windows.ps1` y entrega juntos `dist/HyperLogsSetup.exe` y `dist/HyperLogsAgent.exe`. El asistente identifica el equipo, canjea el código, protege la credencial mediante DPAPI, restringe la carpeta local a SYSTEM/Administradores y crea la tarea `HyperLogs Agent` para iniciar con Windows. El código vence en diez minutos y nunca contiene el token permanente.
+
 ## Roles y respuesta
 
 | Rol | Alcance |

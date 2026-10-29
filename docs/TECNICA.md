@@ -77,6 +77,12 @@ El UI conserva la estética aprobada. Formularios con etiquetas, diálogos con f
 
 ## Descubrimiento de activos en la LAN
 
+### Incorporación asistida de Windows
+
+El administrador genera un código aleatorio de 60 bits, visible durante diez minutos y canjeable una sola vez. `HyperLogsSetup.exe` presenta nombre, IP y versión del equipo a `POST /api/enrollments/claim`; el servidor crea la fuente real y devuelve su token únicamente en esa respuesta. Los intentos fallidos se limitan por IP y quedan auditados. En Windows, el token se cifra con DPAPI en ámbito de máquina y su archivo queda restringido a SYSTEM y al grupo local de administradores. La tarea de inicio ejecuta `HyperLogsAgent.exe`; no instala control remoto ni acepta órdenes desde el servidor.
+
+La construcción produce dos binarios: la interfaz elevada `HyperLogsSetup.exe` y el recolector sin interfaz `HyperLogsAgent.exe`. Las pruebas automatizadas usan directorios temporales y planes `dry_run`; no registran tareas ni cambian permisos del host.
+
 La consola incluye **Descubrir red**. Un administrador inicia una búsqueda IPv4 de hasta 254 direcciones, en segundo plano, con progreso y auditoría. El servidor prueba ICMP y conexiones TCP a 22, 80, 443, 445 y 3389; no autentica, no lee banners ni ejecuta órdenes remotas. Las respuestas se conservan como inventario separado de las fuentes que envían eventos. Registrar abre el formulario de fuente con IP y tipo sugerido; el token y el agente completan la incorporación al monitoreo.
 
 En el archivo de entorno del servidor define, con la red real del centro:

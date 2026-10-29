@@ -135,6 +135,9 @@ def initialize():
         CREATE TABLE IF NOT EXISTS controls(id INTEGER PRIMARY KEY,run_id INTEGER REFERENCES runs(id),source_id TEXT,ip TEXT,kind TEXT,expires TEXT,active INTEGER DEFAULT 1);
         CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,time TEXT,actor TEXT,action TEXT,target TEXT,detail TEXT,previous TEXT,hash TEXT);
         CREATE TABLE IF NOT EXISTS auth_failures(ip TEXT,time TEXT);
+        CREATE TABLE IF NOT EXISTS enrollments(id INTEGER PRIMARY KEY,code_hash TEXT UNIQUE NOT NULL,name TEXT NOT NULL,kind TEXT NOT NULL,ip TEXT NOT NULL,created_by TEXT NOT NULL,created TEXT NOT NULL,expires TEXT NOT NULL,consumed TEXT);
+        CREATE TABLE IF NOT EXISTS enrollment_failures(ip TEXT NOT NULL,time TEXT NOT NULL);
+        CREATE INDEX IF NOT EXISTS enrollment_expires ON enrollments(expires);
         CREATE INDEX IF NOT EXISTS failures_time ON auth_failures(time);
         ''')
         c.execute('DELETE FROM sessions')
@@ -361,6 +364,59 @@ class SourceCreate(StrictModel):
     @field_validator('ip')
     @classmethod
     def check_ip(cls,value): return normalized_ip(value)
+
+
+class EnrollmentCreate(SourceCreate):
+    simulated: bool = False
+
+
+class EnrollmentClaim(StrictModel):
+    code: str = Field(pattern=r'^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$')
+    hostname: str = Field(min_length=2,max_length=80,pattern=r'^[A-Za-z0-9_.-]+$')
+    ip: str = Field(default='',max_length=64)
+    os_version: str = Field(default='',max_length=160)
+
+    @field_validator('ip')
+    @classmethod
+    def valid_ip(cls,value): return normalized_ip(value)
+
+
+@app.post('/api/enrollments')
+def create_enrollment(body: EnrollmentCreate,user=Depends(current)):
+    allow(user,'admin')
+    alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    code='-'.join(''.join(secrets.choice(alphabet) for _ in range(4)) for _ in range(3))
+    expires=(datetime.now(timezone.utc)+timedelta(minutes=10)).isoformat()
+    with db() as c:
+        c.execute('DELETE FROM enrollments WHERE expires<?',(now(),))
+        c.execute('INSERT INTO enrollments(code_hash,name,kind,ip,created_by,created,expires) VALUES(?,?,?,?,?,?,?)',
+                  (digest(code),body.name,body.kind,body.ip,user['username'],now(),expires))
+        audit(c,user['username'],'enrollment.created','pending',{'name':body.name,'kind':body.kind,'ip':body.ip,'expires':expires})
+    return {'code':code,'expires':expires,'server':os.getenv('HYPERLOGS_PUBLIC_URL','')}
+
+
+@app.post('/api/enrollments/claim')
+def claim_enrollment(body: EnrollmentClaim,request: Request):
+    remote=request.client.host
+    since=(datetime.now(timezone.utc)-timedelta(minutes=10)).isoformat()
+    with db() as c:
+        c.execute('DELETE FROM enrollment_failures WHERE time<?',(since,))
+        if c.execute('SELECT count(*) FROM enrollment_failures WHERE ip=?',(remote,)).fetchone()[0]>=10:
+            raise HTTPException(429,'Demasiados intentos de vinculación. Espera 10 minutos.',headers={'Retry-After':'600'})
+        enrollment=c.execute('SELECT * FROM enrollments WHERE code_hash=? AND consumed IS NULL AND expires>?',(digest(body.code),now())).fetchone()
+        if not enrollment:
+            c.execute('INSERT INTO enrollment_failures VALUES(?,?)',(remote,now()))
+            audit(c,'anonymous','enrollment.failed','pending',{'ip':remote})
+            raise HTTPException(401,'Código de vinculación inválido o vencido')
+        sid='src-'+secrets.token_hex(8)
+        token=secrets.token_urlsafe(32)
+        name=enrollment['name'] or body.hostname
+        ip=enrollment['ip'] or body.ip
+        c.execute('INSERT INTO sources(id,name,kind,ip,simulated,token_hash,created) VALUES(?,?,?,?,0,?,?)',
+                  (sid,name,enrollment['kind'],ip,digest(token),now()))
+        c.execute('UPDATE enrollments SET consumed=? WHERE id=?',(now(),enrollment['id']))
+        audit(c,'agent-setup','enrollment.claimed',sid,{'hostname':body.hostname,'ip':ip,'os_version':body.os_version})
+    return {'id':sid,'name':name,'token':token,'server_time':now()}
 
 @app.get('/api/sources')
 def sources(user=Depends(current)):
