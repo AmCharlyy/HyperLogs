@@ -28,6 +28,8 @@ Desarrollo con recarga de interfaz: `npm run dev` y API en 8000. La configuraci�
 
 El modo producción es explícito y falla al iniciar si habilitas el demo o no configuras origen HTTPS y hosts autorizados. Consulta [la guía de despliegue](docs/PRODUCCION.md). Se incluyen servicios systemd, Nginx, respaldo diario y dependencias Python bloqueadas.
 
+Para levantar la instancia local en contenedores con HTTPS en `https://localhost:8443`, consulta [Producción con Docker](docs/PRODUCCION.md#contenedores-en-windows-y-desarrollo-local). Los datos SQLite y los instaladores permanecen en `.runtime/data`; ese directorio no se versiona.
+
 **Estado del alcance:** aplicación preparada para un despliegue de una instancia con volumen moderado. No se ha instalado ni medido en tu Linux real. Las acciones SOAR suministradas son un sandbox, no administran Windows, reglas reales de firewall ni aíslan físicamente equipos. En producción están desactivadas por defecto. Una integración de contención real requiere su propio conector, permisos, pruebas y reversión.
 
 ## Conectar fuentes reales

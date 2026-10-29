@@ -1,0 +1,5 @@
+FROM caddy:2-alpine
+USER root
+RUN apk add --no-cache libcap \
+ && setcap -r /usr/bin/caddy \
+ && apk del libcap

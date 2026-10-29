@@ -1,5 +1,29 @@
 # Despliegue de una instancia en Debian/Linux
 
+## Contenedores en Windows y desarrollo local
+
+El perfil Compose incluido ejecuta la misma API compilada en modo producción, SQLite en un directorio persistente y Caddy como proxy HTTPS local. Los puertos se enlazan solo a `127.0.0.1`; la instancia no queda expuesta a la LAN. En Windows requiere Docker Desktop con el motor Linux/WSL 2 iniciado.
+
+```powershell
+New-Item -ItemType Directory -Force .runtime/data/downloads
+python -m pip install -r agents/requirements.txt
+powershell -ExecutionPolicy Bypass -File agents/build_windows.ps1
+Copy-Item dist/HyperLogsSetup.exe .runtime/data/downloads/
+Copy-Item dist/HyperLogsAgent.exe .runtime/data/downloads/
+docker compose build
+docker compose run --rm app python -m backend.manage bootstrap
+docker compose up -d
+docker compose ps
+```
+
+El comando `bootstrap` solicita una contraseña nueva de forma interactiva; crea la cuenta `admin` y no imprime el secreto. No hay contraseña predeterminada. Luego entra en `https://localhost:8443`. Caddy crea una CA local privada y su certificado raíz se exporta a `.runtime/caddy-root.crt`. Los navegadores mostrarán una advertencia hasta que el usuario decida instalar esa raíz en el almacén de confianza de su perfil de Windows; no omitas las advertencias TLS. Si deseas confiarla manualmente, ejecuta en PowerShell: `Import-Certificate -FilePath .runtime/caddy-root.crt -CertStoreLocation Cert:\CurrentUser\Root`. Si no deseas confiarla, puedes detener el perfil con `docker compose down`.
+
+La base SQLite, las fuentes y los archivos de descarga se conservan en `.runtime/data` incluso después de actualizar o recrear los contenedores. Para respaldar, detén brevemente la instancia y copia ese directorio completo; para una copia consistente mientras está activa, utiliza `docker compose exec app python -m backend.manage backup --output /var/lib/hyperlogs/backups/archivo.tar.gz`. No uses el modo demo para esta instancia.
+
+Los escaneos de red permanecen desactivados (`HYPERLOGS_DISCOVERY_NETWORKS` vacío). Antes de habilitarlos, autoriza únicamente los segmentos que administras y evalúa el acceso desde la red Docker.
+
+> Esta configuración es producción local con límites y TLS, no una publicación pública. Para acceder desde otros equipos hay que proporcionar un dominio/certificado de confianza, ampliar hosts autorizados y revisar firewall, respaldos fuera del equipo y despliegue en un host dedicado.
+
 Usa un equipo dedicado o VM con Linux sin escritorio. La propuesta evita Docker, servicios de base de datos separados y compilaciones continuas en el servidor. Un solo proceso de API mantiene las escrituras SQLite y la cadena de auditoría coordinadas. Escalar a múltiples procesos requiere rediseñar esa coordinación; no aumentes `--workers` sin hacerlo.
 
 ## 1. Preparar archivos y usuario de servicio

@@ -1,0 +1,92 @@
+name: hyperlogs
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hyperlogs:local
+    environment:
+      HYPERLOGS_ENV: production
+      HYPERLOGS_DEMO: "0"
+      HYPERLOGS_LAB_ENABLED: "0"
+      HYPERLOGS_DATA: /var/lib/hyperlogs
+      HYPERLOGS_PUBLIC_URL: https://localhost:8443
+      HYPERLOGS_ALLOWED_HOSTS: localhost
+      HYPERLOGS_DISCOVERY_NETWORKS: ""
+    volumes:
+      - ./.runtime/data:/var/lib/hyperlogs
+    expose:
+      - "8000"
+    networks:
+      - backend
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 2g
+    cpus: 2.0
+    pids_limit: 128
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  caddy:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.caddy
+    image: hyperlogs-caddy:local
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8443:8443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - backend
+      - edge
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 192m
+    cpus: 0.5
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "3"
+
+networks:
+  backend:
+    internal: true
+  edge: {}
+
+volumes:
+  caddy_data:
+  caddy_config:
