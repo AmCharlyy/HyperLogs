@@ -909,11 +909,11 @@ def public_config():
     directory=DATA/'downloads'
     return {'demo':DEMO and not PRODUCTION,'production':PRODUCTION,'downloads':{
         name:{'available':(directory/name).is_file(),'bytes':(directory/name).stat().st_size if (directory/name).is_file() else 0}
-        for name in ('HyperLogsSetup.exe','HyperLogsAgent.exe')}}
+        for name in ('HyperLogsSetup.exe','HyperLogsAgent.exe','caddy-root.crt')}}
 
 @app.get('/api/downloads/{name}')
 def public_download(name:str):
-    if name not in {'HyperLogsSetup.exe','HyperLogsAgent.exe'}:
+    if name not in {'HyperLogsSetup.exe','HyperLogsAgent.exe','caddy-root.crt'}:
         raise HTTPException(404,'Descarga no encontrada')
     path=DATA/'downloads'/name
     if not path.is_file():

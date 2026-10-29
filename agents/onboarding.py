@@ -10,6 +10,8 @@ import tempfile
 import urllib.parse
 import urllib.request
 
+from tls_context import verified_context
+
 
 def normalize_server(value):
     value=value.strip().rstrip('/')
@@ -35,22 +37,27 @@ def device_info():
     return {'hostname':hostname,'ip':ip,'os_version':f'{platform.system()} {platform.release()} {platform.version()}'[:160]}
 
 
-def claim(server,code,info=None,opener=urllib.request.urlopen):
+def claim(server,code,info=None,opener=urllib.request.urlopen,ca_cert=None):
     server=normalize_server(server);info=info or device_info()
     payload=dict(code=code.strip().upper(),**info)
     request=urllib.request.Request(server+'/api/enrollments/claim',data=json.dumps(payload).encode('utf-8'),
                                    headers={'Content-Type':'application/json'},method='POST')
-    with opener(request,timeout=15) as response:
+    options={'timeout':15}
+    if ca_cert:
+        options['context']=verified_context(ca_cert)
+    with opener(request,**options) as response:
         result=json.load(response)
     if len(result.get('token',''))<20 or not result.get('id'):
         raise RuntimeError('HyperLogs devolvió una vinculación incompleta.')
     return result
 
 
-def make_config(server,token,root,watch_files=None,protector=None):
+def make_config(server,token,root,watch_files=None,protector=None,ca_cert=None):
     root=Path(root)
     cfg={'server':normalize_server(server),'interval':30,'state':str(root/'agent-state.sqlite3'),
          'watch_files':watch_files or [r'C:\Windows\System32\drivers\etc\hosts'],'auth_log':''}
+    if ca_cert:
+        cfg['ca_cert']=str(Path(ca_cert).resolve())
     if platform.system()=='Windows':
         if protector is None:
             from windows_secret import protect
@@ -76,19 +83,23 @@ def startup_command(agent_executable,config_path):
     return [str(agent_executable),'--config',str(config_path)]
 
 
-def install_windows(agent_executable,root=None,runner=subprocess.run,dry_run=False):
+def install_windows(agent_executable,root=None,runner=subprocess.run,dry_run=False,ca_certificate=None):
     if platform.system()!='Windows': raise OSError('La instalación automática solo está disponible en Windows.')
     root=Path(root or os.environ.get('ProgramData',r'C:\ProgramData'))/'HyperLogs'
-    binary=root/'HyperLogsAgent.exe';config=root/'agent.json'
+    binary=root/'HyperLogsAgent.exe';config=root/'agent.json';ca_target=root/'caddy-root.crt'
     command=startup_command(binary,config)
     task=['schtasks.exe','/Create','/TN','HyperLogs Agent','/SC','ONSTART','/RU','SYSTEM','/RL','HIGHEST','/F',
           '/TR',subprocess.list2cmdline(command)]
-    if dry_run:return {'root':str(root),'binary':str(binary),'config':str(config),'task':task}
+    if dry_run:return {'root':str(root),'binary':str(binary),'config':str(config),'ca_cert':str(ca_target),'task':task}
     root.mkdir(parents=True,exist_ok=True);shutil.copy2(agent_executable,binary)
+    if ca_certificate:
+        source=Path(ca_certificate).resolve()
+        if not source.is_file():raise RuntimeError('No se encontró caddy-root.crt junto al instalador.')
+        shutil.copy2(source,ca_target)
     acl=runner(['icacls.exe',str(root),'/inheritance:r','/grant:r',
                 '*S-1-5-18:(OI)(CI)F','*S-1-5-32-544:(OI)(CI)F'],capture_output=True,text=True,timeout=30)
     if acl.returncode:raise RuntimeError('Windows no pudo proteger la carpeta privada del agente.')
     result=runner(task,capture_output=True,text=True,timeout=30)
     if result.returncode:raise RuntimeError('Windows no pudo crear la tarea de inicio de HyperLogs Agent.')
     runner(['schtasks.exe','/Run','/TN','HyperLogs Agent'],capture_output=True,text=True,timeout=15)
-    return {'root':str(root),'binary':str(binary),'config':str(config),'task':task}
+    return {'root':str(root),'binary':str(binary),'config':str(config),'ca_cert':str(ca_target),'task':task}

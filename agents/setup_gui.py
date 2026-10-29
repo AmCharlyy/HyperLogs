@@ -38,13 +38,15 @@ class Setup(tk.Tk):
 
     def work(self):
         try:
-            result=claim(self.server.get(),self.code.get(),self.info)
             sibling=Path(sys.executable).with_name('HyperLogsAgent.exe')
             if not sibling.exists():raise RuntimeError('HyperLogsAgent.exe debe estar junto al instalador.')
+            certificate=Path(sys.executable).with_name('caddy-root.crt')
+            if not certificate.exists():raise RuntimeError('Descarga caddy-root.crt y colócalo junto a HyperLogsSetup.exe.')
+            result=claim(self.server.get(),self.code.get(),self.info,ca_cert=certificate)
             plan=install_windows(sibling,dry_run=True)
-            cfg=make_config(self.server.get(),result['token'],plan['root'])
+            cfg=make_config(self.server.get(),result['token'],plan['root'],ca_cert=plan['ca_cert'])
             write_config(plan['config'],cfg)
-            install_windows(sibling)
+            install_windows(sibling,ca_certificate=certificate)
             self.after(0,lambda:self.success(result))
         except Exception as exc:
             self.after(0,lambda:self.failure(str(exc)))

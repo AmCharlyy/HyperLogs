@@ -2,7 +2,7 @@
 
 ## Contenedores en Windows y desarrollo local
 
-El perfil Compose incluido ejecuta la misma API compilada en modo producción, SQLite en un directorio persistente y Caddy como proxy HTTPS local. Los puertos se enlazan solo a `127.0.0.1`; la instancia no queda expuesta a la LAN. En Windows requiere Docker Desktop con el motor Linux/WSL 2 iniciado.
+El perfil Compose incluido ejecuta la misma API compilada en modo producción, SQLite en un directorio persistente y Caddy como proxy HTTPS. De forma predeterminada se enlaza solo a `127.0.0.1`; mediante el `.env` puede exponerse de forma explícita a una LAN autorizada. En Windows requiere Docker Desktop con el motor Linux/WSL 2 iniciado.
 
 ```powershell
 New-Item -ItemType Directory -Force .runtime/data/downloads
@@ -20,6 +20,8 @@ Copy-Item dist/HyperLogsAgent.exe .runtime/data/downloads/
 docker compose build
 docker compose run --rm app python -m backend.manage bootstrap
 docker compose up -d
+docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt .runtime/caddy-root.crt
+Copy-Item .runtime/caddy-root.crt .runtime/data/downloads/
 docker compose ps
 ```
 

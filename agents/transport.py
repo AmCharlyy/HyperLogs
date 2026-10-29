@@ -7,6 +7,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from tls_context import verified_context
+
 
 def config(path):
     cfg=json.loads(Path(path).read_text(encoding='utf-8-sig'))
@@ -23,12 +25,15 @@ def config(path):
         raise ValueError('HTTPS required except for loopback testing')
     if len(cfg.get('token',''))<20 or cfg['token']=='REPLACE_WITH_SOURCE_TOKEN':raise ValueError('Configure the source token locally')
     cfg['server']=cfg['server'].rstrip('/')
+    if cfg.get('ca_cert'):
+        cfg['ca_cert']=str(Path(cfg['ca_cert']).expanduser().resolve())
     return cfg
 
 
 class Queue:
     def __init__(self,cfg):
         self.cfg=cfg
+        self.tls_context=verified_context(cfg.get('ca_cert'))
         path=Path(cfg.get('state','agent-state.sqlite3')).resolve()
         path.parent.mkdir(parents=True,exist_ok=True)
         self.db=sqlite3.connect(path)
@@ -54,7 +59,7 @@ class Queue:
         if not batch:return 0
         request=urllib.request.Request(self.cfg['server']+'/api/ingest',data=json.dumps({'events':[json.loads(row[1]) for row in batch]}).encode(),headers={'Content-Type':'application/json','X-Source-Token':self.cfg['token']},method='POST')
         # urllib verifies TLS by default; no insecure certificate bypass.
-        with urllib.request.urlopen(request,timeout=15) as response:
+        with urllib.request.urlopen(request,timeout=15,context=self.tls_context) as response:
             result=json.load(response)
         if result.get('accepted')!=len(batch):raise RuntimeError('Unexpected acknowledgement; retained batch')
         self.db.executemany('DELETE FROM queue WHERE id=?',[(row[0],) for row in batch]);self.db.commit()

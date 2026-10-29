@@ -44,8 +44,10 @@ def test_onboarding_claim_and_atomic_config(tmp_path,monkeypatch):
         return Response(json.dumps({'id':'src-1','name':'LAB-PC','token':'x'*32}).encode())
     result=onboarding.claim('https://hyperlogs.local/','ABCD-EFGH-JKLM',{'hostname':'LAB-PC','ip':'10.0.0.4','os_version':'Windows 11'},opener)
     monkeypatch.setattr(onboarding.platform,'system',lambda:'Windows')
-    cfg=onboarding.make_config('https://hyperlogs.local',result['token'],tmp_path,protector=lambda value:'protected-'+value[-4:])
+    certificate=tmp_path/'caddy-root.crt';certificate.write_text('test-ca')
+    cfg=onboarding.make_config('https://hyperlogs.local',result['token'],tmp_path,protector=lambda value:'protected-'+value[-4:],ca_cert=certificate)
     assert 'token' not in cfg and cfg['token_protected']=='protected-xxxx'
+    assert cfg['ca_cert']==str(certificate.resolve())
     path=tmp_path/'agent.json';onboarding.write_config(path,cfg)
     assert json.loads(path.read_text())['state']==str(tmp_path/'agent-state.sqlite3')
 
@@ -61,11 +63,13 @@ def test_install_plan_is_isolated_and_quoted(tmp_path,monkeypatch):
 def test_install_uses_mocked_windows_tools_only(tmp_path,monkeypatch):
     monkeypatch.setattr(onboarding.platform,'system',lambda:'Windows')
     executable=tmp_path/'input-agent.exe';executable.write_bytes(b'isolated-agent')
+    certificate=tmp_path/'input-ca.crt';certificate.write_bytes(b'public-ca')
     calls=[]
     class Result:returncode=0
     def runner(command,**kwargs):calls.append(command);return Result()
-    result=onboarding.install_windows(executable,root=tmp_path/'program-data',runner=runner)
+    result=onboarding.install_windows(executable,root=tmp_path/'program-data',runner=runner,ca_certificate=certificate)
     assert Path(result['binary']).read_bytes()==b'isolated-agent'
+    assert Path(result['ca_cert']).read_bytes()==b'public-ca'
     assert [call[0] for call in calls]==['icacls.exe','schtasks.exe','schtasks.exe']
 
 
